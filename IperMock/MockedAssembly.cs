@@ -60,7 +60,7 @@ namespace IperMock
         private void ConfigureProperties(Type currentType, TypeBuilder typeBuilder, ILGenerator constructorGenerator, Dictionary<string, bool> createdNames)
         {
             foreach (var property in currentType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(x => !createdNames.ContainsKey(x.Name) && x.GetMethod!.IsAbstract))
+                .Where(x => !createdNames.ContainsKey(x.Name) && (currentType.IsInterface || x.GetMethod!.IsAbstract)))
             {
                 ConfigureProperty(property, typeBuilder, constructorGenerator, createdNames);
             }
@@ -150,6 +150,7 @@ namespace IperMock
 
                 if (isIndexer)
                 {
+                    constructorGenerator.Emit(OpCodes.Ldarg_0);
                     constructorGenerator.Emit(OpCodes.Newobj, propertyType.GetConstructor(Type.EmptyTypes)!);
                     constructorGenerator.Emit(OpCodes.Stfld, privateFieldBuilder);
                 }
@@ -162,8 +163,8 @@ namespace IperMock
                     if (isIndexer)
                     {
                         for (int i = 0; i < getParameters.Length; i++)
-                            generator.Emit(OpCodes.Ldarg, i + 1);
-                        generator.Emit(OpCodes.Callvirt, typeof(MockedAssembly).GetMethod(nameof(GetFromDictionary))!);
+                            generator.Emit(OpCodes.Ldarg_S, i + 1);
+                        generator.Emit(OpCodes.Callvirt, typeof(MockedAssembly).GetMethod(nameof(GetFromDictionary), BindingFlags.NonPublic | BindingFlags.Static)!);
                     }
                 });
                 propertyBuilder.SetGetMethod(getMethodBuilder);
@@ -179,7 +180,7 @@ namespace IperMock
                                 if (isIndexer)
                                 {
                                     for (int i = 0; i < setParameters.Length; i++)
-                                        generator.Emit(OpCodes.Ldarg, i + 2);
+                                        generator.Emit(OpCodes.Ldarg_S, i + 2);
                                     generator.Emit(OpCodes.Callvirt, privateFieldBuilder.FieldType.GetMethod("Add")!);
                                 }
                                 else
@@ -189,6 +190,13 @@ namespace IperMock
                 }
 
             }
+        }
+        public static void OverrideMethod(object entity, string methodName, object action)
+        {
+            Type type = entity.GetType();
+            Assembly assembly = type.Assembly;
+            var what = action.GetType();
+            //DynamicMethod dynamicMethod = new DynamicMethod(methodName, );
         }
         private void ConfigureMethods(Type currentType, TypeBuilder typeBuilder, Dictionary<string, bool> createdNames)
         {

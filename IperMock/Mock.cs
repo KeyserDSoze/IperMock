@@ -40,9 +40,12 @@ namespace IperMock
         }
         public static Mock<T> CreateWithDefaultValues()
             => default;
+        private static readonly PropertyInfo DebugView = typeof(Expression).GetProperty("DebugView", BindingFlags.Instance | BindingFlags.NonPublic);
         private Mock<T> Execute<TProperty>(in Expression<Func<T, TProperty>> navigationPropertyPath, Action<PropertyInfo, object> action)
         {
-            var navigationPath = navigationPropertyPath.ToString().Split('.').Skip(1).ToList();
+            var debugView = DebugView.GetValue(navigationPropertyPath).ToString();
+            var x = debugView.Split('$').Last().Split('\r').First().Replace("(", string.Empty).Replace(")", string.Empty);
+            var navigationPath = x.Split('.').Skip(1).ToList();
             int counter = 0;
             object theActualObject = Instance!;
             var type = theActualObject.GetType();
@@ -93,20 +96,25 @@ namespace IperMock
                 }
             }
         }
-        public Mock<T> Construct<TProperty>(in Expression<Func<T, TProperty>> navigationPropertyPath, params object[] parameters)
-            => Execute(navigationPropertyPath, (nextType, theActualObject) =>
+        public Mock<T> Construct<TProperty>(in Expression<Func<T, TProperty>> navigationPath, params object[] parameters)
+            => Execute(navigationPath, (nextType, theActualObject) =>
                     Mock<T>.SetValue(nextType, theActualObject, nextType.PropertyType.FectConstructors()
                         .First(x => x.GetParameters().Length == (parameters?.Length ?? 0))
                         .Invoke(parameters)));
-        public Mock<T> Default<TProperty>(in Expression<Func<T, TProperty>> navigationPropertyPath)
-            => Execute(navigationPropertyPath, (nextType, theActualObject)
+        public Mock<T> Default<TProperty>(in Expression<Func<T, TProperty>> navigationPath)
+            => Execute(navigationPath, (nextType, theActualObject)
                 => Mock<T>.SetValue(nextType, theActualObject, Create<TProperty>()!));
-        public Mock<T> Set<TProperty>(in Expression<Func<T, TProperty>> navigationPropertyPath, TProperty value)
-            => Execute(navigationPropertyPath, (nextType, theActualObject)
+        public Mock<T> Set<TProperty>(in Expression<Func<T, TProperty>> navigationPath, TProperty value)
+            => Execute(navigationPath, (nextType, theActualObject)
                 => Mock<T>.SetValue(nextType, theActualObject, value!));
-        public Mock<T> Add<TProperty>(in Expression<Func<T, IEnumerable<TProperty>>> navigationPropertyPath, TProperty value)
-            => Execute(navigationPropertyPath, (nextType, theActualObject)
+        public Mock<T> Add<TProperty>(in Expression<Func<T, IEnumerable<TProperty>>> navigationPath, TProperty value)
+            => Execute(navigationPath, (nextType, theActualObject)
                 => Add((theActualObject as IEnumerable)!, value!));
+        public Mock<T> Method<TFunction>(in Expression<Func<T, TFunction>> navigationPath, TFunction value)
+            => Execute(navigationPath, (nextType, theActualObject) =>
+            {
+                MockedAssembly.OverrideMethod(theActualObject, string.Empty, value);
+            });
 
         public static IEnumerable Add(IEnumerable elements, object value)
         {

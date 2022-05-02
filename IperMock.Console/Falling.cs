@@ -10,6 +10,14 @@ using System.Threading.Tasks;
 
 namespace IperMock.Console
 {
+    public class Melina
+    {
+        private readonly Dictionary<string, string> Dictionary;
+        public Melina()
+        {
+            Dictionary = new Dictionary<string, string>();
+        }
+    }
     public class Felish : IHeaderDictionary
     {
         private readonly Dictionary<string, StringValues> _values;
